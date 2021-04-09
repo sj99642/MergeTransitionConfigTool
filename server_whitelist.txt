@@ -1,0 +1,3 @@
+aq11.earthsense.co.uk:1004:1005
+aq76.earthsense.co.uk:859:None
+aq77.earthsense.co.uk:None:860
