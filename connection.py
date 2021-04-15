@@ -27,12 +27,43 @@ def synchronised(method):
 
 
 class DBConnection:
+    # Number of times a connection has to sleep before the length of time of the sleep is increased
+    SLEEP_TIME_PATIENCE = 50
+
+    # By how many seconds will the sleep time increase
+    SLEEP_TIME_INCREMENT = 1
+
+    # The maximum sleep time permitted
+    SLEEP_TIME_MAX = 60*10
+
     def __init__(self):
         self._lock = Lock()
         self._connection = pymysql.connect(user=es_auth._get_creds("dbPOD_write")["user"],
                                           password=es_auth._get_creds("dbPOD_write")["password"],
                                           host=es_auth._get_creds("dbPOD_write")["host"],
                                           database=es_auth._get_creds("dbPOD_write")["db"])
+        self._sleep_time = 10
+        self._attempts_at_sleep_time = 0
+
+    def _progress_sleep_time(self):
+        """
+        If _attempts_at_sleep_time is greater than SLEEP_TIME_PATIENCE, increase it by SLEEP_TIME_INCREMENT,
+        up to a maximum of SLEEP_TIME_MAX. Increment _attempts_at_sleep_time.
+
+        Used for the process of gradually making requests less and less frequently
+        :return:
+        """
+        self._attempts_at_sleep_time += 1
+
+        if self._sleep_time >= self.SLEEP_TIME_MAX:
+            # Already at the maximum sleep time
+            return
+
+        if self._attempts_at_sleep_time >= self.SLEEP_TIME_PATIENCE:
+            self._attempts_at_sleep_time = 0
+            self._sleep_time += self.SLEEP_TIME_INCREMENT
+            LOG.debug(f"Increasing sleep time to {self._sleep_time}")
+
 
     # An unsynchronised version, to be used by synchronised functions
     def _send_command_to_zephyr(self, commandId, zephyrName):
@@ -79,7 +110,8 @@ class DBConnection:
                 return results[0][0]
 
             # We didn't get any results. Sleep for a while and try again.
-            time.sleep(10)
+            self._progress_sleep_time()
+            time.sleep(self._sleep_time)
 
     @synchronised
     def set_ports(self, zephyrName):
