@@ -130,6 +130,18 @@ def get_nt_string_from_hex(hex_string):
     return s
 
 
+def thread_zephyr_wrapper(serialNumber):
+    """
+    Wrapper for thread_zephyr which catches and logs exceptions
+    :param serialNumber:
+    :return:
+    """
+    try:
+        thread_zephyr(serialNumber)
+    except Exception as err:
+        LOG.exception(f"Exception while processing Zephyr {serialNumber}", exc_info=err)
+
+
 def thread_zephyr(serialNumber):
     """
     Runs the configuration loop for a given Zephyr.
@@ -291,7 +303,7 @@ def main(zephyrs: "list[str]"):
     """
 
     for zephyr in zephyrs:
-        Thread(target=thread_zephyr, args=(zephyr,), name="Thread-"+zephyr).start()
+        Thread(target=thread_zephyr_wrapper, args=(zephyr,), name="Thread-"+zephyr).start()
         LOG.info(f"Started thread for Zephyr {zephyr}")
 
     if threading.active_count() == 1:
