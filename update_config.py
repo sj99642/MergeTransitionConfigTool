@@ -14,10 +14,18 @@ The new method is to have:
 These settings do not sit on top of the old settings but are in other, currently unused places. The aim of this tool
 is to go through a set of old units, read their old versions, parse out what we need for the new versions, and
 set the new versions.
+
+# To run
+Modify the main() call at the beginning of this file, and then run it. Configure apn_whitelist.txt and
+server_whitelist.txt before running, but updates will be recognised if they are modified during program running.
+
+The main logging output provides a narrative, which is also printed in log.txt (this does not overwrite with each run).
+The files Success.txt and Failure.txt are populated with units which have either successful or unsuccessfully finished
+their execution, but these are overwritten with each execution, so be careful.
 """
 import threading
 from collections import deque, namedtuple
-from threading import Thread
+from threading import Thread, Lock
 import logging
 import re
 from enum import Enum
@@ -44,6 +52,11 @@ CONNECTION = DBConnection()
 
 EXPECTED_APN_COMMAND_FORMAT = re.compile(r"""AT\+CSTT=(\".*\",\".*\",\".*\")""")
 EXPECTED_SERVER_COMMAND_FORMAT = re.compile(r"AT\+CIPSTART=\"TCP\",\"(.*)\",\".*\"")
+
+SUCCESS_FILE = open("success.txt", "wt")
+FAILURE_FILE = open("failure.txt", "wt")
+SUCCESS_FILE_LOCK = Lock()
+FAILURE_FILE_LOCK = Lock()
 
 
 class APNFormattingException(Exception):
@@ -141,6 +154,9 @@ def thread_zephyr_wrapper(serialNumber):
     except Exception as err:
         LOG.exception(f"Exception while processing Zephyr {serialNumber}", exc_info=err)
 
+        with FAILURE_FILE_LOCK:
+            print(serialNumber, file=FAILURE_FILE, flush=True)
+
 
 def thread_zephyr(serialNumber):
     """
@@ -211,6 +227,8 @@ def thread_zephyr(serialNumber):
     CONNECTION.set_ports(serialNumber)
 
     LOG.info("FINISHED SETTINGS ROLLOUT FOR UNIT")
+    with SUCCESS_FILE_LOCK:
+        print(serialNumber, file=SUCCESS_FILE, flush=True)
 
 
 def set_new_apn(serialNumber: str, old_apn_command: str, apns: "dict"):
@@ -312,18 +330,4 @@ def main(zephyrs: "list[str]"):
 
 # Testing
 if __name__ == "__main__":
-    main("""TM000063
-TM000118
-TM500018
-TM500185
-TM200058
-TM200104
-TM200205
-TM300057
-TM400008
-TM400013
-TM500067
-TM200089
-TM200072
-TM000042
-TM400000""".split())
+    main("""TM500185""".split())
