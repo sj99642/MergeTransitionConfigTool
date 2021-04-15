@@ -15,19 +15,21 @@ These settings do not sit on top of the old settings but are in other, currently
 is to go through a set of old units, read their old versions, parse out what we need for the new versions, and
 set the new versions.
 """
-
+import threading
 from collections import deque, namedtuple
 from threading import Thread
 import logging
 import re
 from enum import Enum
+import sys
 
 from connection import DBConnection
 from cmd_ids import *
 
 # Set up the logger
-LOG = logging.Logger("update_config")
-stderr_handler = logging.StreamHandler()
+LOG = logging.getLogger("update_config")
+LOG.setLevel(logging.DEBUG)
+stderr_handler = logging.StreamHandler(sys.stderr)
 stderr_handler.setFormatter(logging.Formatter("%(asctime)s - %(threadName)s - %(levelname)s - %(message)s"))
 stderr_handler.setLevel(logging.DEBUG)
 LOG.addHandler(stderr_handler)
@@ -196,6 +198,8 @@ def thread_zephyr(serialNumber):
     # Set main port
     CONNECTION.set_ports(serialNumber)
 
+    LOG.info("FINISHED SETTINGS ROLLOUT FOR UNIT")
+
 
 def set_new_apn(serialNumber: str, old_apn_command: str, apns: "dict"):
     """
@@ -290,8 +294,24 @@ def main(zephyrs: "list[str]"):
         Thread(target=thread_zephyr, args=(zephyr,), name="Thread-"+zephyr).start()
         LOG.info(f"Started thread for Zephyr {zephyr}")
 
-
+    if threading.active_count() == 1:
+        # All the above threads have finished
+        LOG.info("ALL ZEPHYRS FINISHED")
 
 # Testing
 if __name__ == "__main__":
-    main(["TM400059"])
+    main("""TM000063
+TM000118
+TM500018
+TM500185
+TM200058
+TM200104
+TM200205
+TM300057
+TM400008
+TM400013
+TM500067
+TM200089
+TM200072
+TM000042
+TM400000""".split())

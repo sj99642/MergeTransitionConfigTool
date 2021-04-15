@@ -12,7 +12,7 @@ import es_auth
 
 from cmd_ids import *
 
-LOG = logging.Logger("update_config")
+LOG = logging.getLogger("update_config")
 
 
 # A decorator to allow us to make functions thread-safe
@@ -89,3 +89,4 @@ class DBConnection:
         :return:
         """
         self._send_command_to_zephyr(COMMAND_ID_SET_NEW_PORTS, zephyrName)
+        LOG.info("Sent command to set ports")
