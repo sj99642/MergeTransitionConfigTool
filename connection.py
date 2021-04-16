@@ -2,7 +2,7 @@
 Defines a class to handle our connections in a sensible and thread-safe manner.
 """
 
-from threading import Lock
+from threading import Lock, active_count
 import logging
 import time
 
@@ -28,10 +28,12 @@ def synchronised(method):
 
 class DBConnection:
     # Number of times a connection has to sleep before the length of time of the sleep is increased
-    SLEEP_TIME_PATIENCE = 50
+    # This is multiplied by the number of Zephyrs active, so the connection wait time should increase after
+    # every Zephyr has SLEEP_TIME_PATIENCE checks
+    SLEEP_TIME_PATIENCE = 10
 
     # By how many seconds will the sleep time increase
-    SLEEP_TIME_INCREMENT = 1
+    SLEEP_TIME_INCREMENT = 5
 
     # The maximum sleep time permitted
     SLEEP_TIME_MAX = 60*10
@@ -59,7 +61,7 @@ class DBConnection:
             # Already at the maximum sleep time
             return
 
-        if self._attempts_at_sleep_time >= self.SLEEP_TIME_PATIENCE:
+        if self._attempts_at_sleep_time >= self.SLEEP_TIME_PATIENCE * (active_count()-1):
             self._attempts_at_sleep_time = 0
             self._sleep_time += self.SLEEP_TIME_INCREMENT
             LOG.debug(f"Increasing sleep time to {self._sleep_time}")
